@@ -1,0 +1,116 @@
+Commande ad-hoc :
+-m module(ping, user, file,Apt, etc..)
+le module shell pour lancer des commandes non classique
+le module raw (-m raw)permet d'exécuter une commande sur une cible sans python(c a d python pas installé sur la cible) 
+-a arguments(name=Bernard, state=present)
+-b become Root
+-i Host
+ansible hal-test -m shell/raw/ping etc... -i hosts (pour pinguer la vm hal-test) hosts est le fichier qui contient les hosts hal sal etc.
+
+ansible all -m ping -i hosts (pinguer tous les hotes en mm temps avec all)
+
+ansible all -m command -a "touch /home/user-ansible/fich1" -i hosts : pour creer le fichier fich1 sur tous les hotes dans le home directory de l'user ansible
+
+pour agir dans d'autres répertoire, il faut utiliser l'option -b ou --become pour exercer le droit sudo de ansible
+ansible all --become -m command -a "touch /fich1" -i hosts
+all (est un groupe ou un pattern)
+Cibler des hôtes
+ansible web1:web2 -m ping -i hosts  : cible les machines web1 et 2 en séparant par une virgule ou deux points : 
+On peut aussi faire la même chose sur les groupes aussi
+ansible web:hpx -m ping -i hosts
+
+ansible 'web*' -m ping -i hosts cible les machines commencant par web
+ansible 'all:!web1' -m ping -i hosts cible toutes les machines sauf web1
+ansible 'web:&ha' -m ping -i hosts cible les machines du groupe web et ha en même temps. (une machine qui est dans les 2 groupes en résumé)
+
+ansible 'web[0]' -m ping -i hosts cible la 1ere machine du groupe web et ainsi de suite
+ansible 'web[0:1]' -m ping -i hosts (cible de 0 à 1 dans web)
+
+ansible 'web[1:]' -m ping -i hosts cible la machine 2 du groupe web jusquà la derniere (fonctionne comme les tableaux)
+ces commandes sont appelées commandes ad'hoc
+ansible cible - m module [-a arg]  [-i inv]
+
+le PLAYBOOK
+fichier yml avec ensemble de play
+Commence toujours par 3 tirets : ---
+les tags servent à limiter l'execution des plays, par ex je veux creer un fichier sur tous les play avec le tag "creer" etc.
+commande : 
+ansible-playbook -i hosts fichier_playbook.yml
+
+ansible-playbook -i hosts fichier_playbook.yml --tags delete : cible les plays avec le tag delete
+--skip-tags update : skipper les plays avec le tag update
+--list-tags create : lister les plays avec un tag create 
+le fichier d'inventaire peut contenir aussi un groupe enfant qui regroupe d'autre groupe ex: 
+[web]
+nginx
+apache
+[windows ad]
+DC-01
+[prod:children]
+web
+windows ad
+
+LES VARIABLES d'HOTES: (le fichier hosts peut etre créé avec toutes ces infos
+[web]
+nginx                   ansible_connection=ssh    ansible_user=ansible 
+apache                ansible_connection=ssh    ansible_user=ansible
+
+variables de groupe : 
+[prod:vars]
+prod_file=/home/ansible/prod_file
+[web:vars]
+web_file=/home/ansible/index.html
+[haproxy:vars]
+haproxy_file=/home/ansible/haproxy.cfg
+
+et dans notre playbook l'utilisation des variables ressemblera à 
+dest:   '{{web_file}}'
+state: '{{file_state}}'
+
+ansible-playbook playbook.yml
+-v mode verbeux 1er niveau -vv 2e niveau etc
+--syntax-check : teste la validité du fichier yml
+--check mode dry-run (simulation)
+
+exemple de playbook avec variable
+(voir image)
+
+Les rôles : permet d'executer des taches en formes de bibliotheques. les tasks sont exécutés par appel un peu comme dans les fonctions en programmation.
+
+creer un repertoires roles
+mkdir -p roles
+cd roles
+ansible-galaxy init nom_role : permet de creer le squelette du rôle automatiquement.
+############################
+Voici ci-dessous les caractéristiques de l'arborescence d'un rôle :
+
+tasks: contient la liste principale des tâches à exécuter par le rôle.
+handlers: contient les handlers, qui peuvent être utilisés par ce rôle ou même en dehors de ce rôle.
+defaults: variables par défaut pour le rôle.
+vars: d'autres variables pour le rôle.
+files: contient des fichiers qui peuvent être déployés via ce rôle.
+templates: contient des modèles (jinja2) qui peuvent être déployés via ce rôle.
+meta: définit certaines métadonnées pour ce rôle.
+README.md: inclut une description générale du fonctionnement de votre rôle.
+test: contient notre playbook (on peut cependant déposer notre playbook à la racine du projet ou dans un dossier sous un nom différent).
+#########################
+
+les asserts sur ansible permettent de réaliser des opérations lorsqu"une condition est vraie comme les boucles.
+
+chiffrer un playbook
+ansible-vault encrypt mon_playbook.yml
+
+jouer un playbook chiffrer
+ansible-playbook  mon_playbook.yml -i inventaire --ask-vault  
+
+Voir le contenu d'un playbook chiffrer: ansible-vault view mon_playbook.yml
+
+dechiffrer un playbook (suppression du chiffrement)
+ansible-vault decrypt mon_playbook.yml
+
+chiffrer une variable mdp par ex
+ansible-vault encrypt_string mon_mdp 
+
+jouer un playbook contenant des variables chiffrés (il faut ajouter l'option --ask-vault-pass)
+ansible-playbook playbook.yml -e env=pve_agrios -i inventory --ask-vault-pass
+
