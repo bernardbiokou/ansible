@@ -1,0 +1,59 @@
+---
+- name: Installation de serveur web via un playbook ansible
+  hosts: node2
+  remote_user: root
+
+  tasks:
+    - name: Installation apache
+      ansible.builtin.yum:
+        pkg:
+          - httpd
+          - net-tools
+          - php
+        
+    - name: Ajout user
+      user:
+        name: "{{ user }}"
+        password: !
+        shell: /bin/false
+
+    - name: creation dossier user
+      ansible.builtin.file:
+        path: /var/www/{{ domain }}
+        state: directory
+        owner: "{{ user }}"
+        group: "{{ user }}"
+        mode: 0755
+
+    - name: phpinfo
+      ansible.builtin.copy:
+        src: index.php
+        dest: /var/www/{{ domain }}
+        owner: "{{ user }}"
+        group: "{{ user }}"
+        mode: 0644
+
+    - name: copie virtualhost
+      template:
+        src: virtualhost.conf.j2
+        dest: /etc/httpd/sites-enabled/virtualhost.conf
+
+    - name: remove default virtualhost
+      command: a2dissite 000-default.conf
+      args: 
+        removes: /etc/httpd/sites-enabled/000-default.conf
+        notify: 
+        - name: relancer apache
+
+    - name: ajout virtualhost
+      command: a2ensite /etc/httpd/sites-enabled/virtualhost.conf
+      args:
+        creates: /etc/httpd/sites-enabled/virtualhost.conf
+        notify: 
+        - name: relancer apache
+
+  handlers:
+    - name: relancer apache
+      ansible.builtin.service:
+        name: httpd
+        state: reloaded
