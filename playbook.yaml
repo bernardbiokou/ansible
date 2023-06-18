@@ -4,28 +4,28 @@
   remote_user: root
 
   tasks:
-    - name: Installation apache
+    - name: install apache
       ansible.builtin.yum:
         pkg:
           - httpd
           - net-tools
           - php
         
-    - name: Ajout user
+    - name: add user
       user:
         name: "{{ user }}"
         password: !
         shell: /bin/false
 
-    - name: creation dossier user
+    - name: create user directory
       ansible.builtin.file:
         path: /var/www/{{ domain }}
         state: directory
         owner: "{{ user }}"
         group: "{{ user }}"
         mode: 0755
-
-    - name: phpinfo
+    
+    - name: customisation index.php file with phpinfo
       ansible.builtin.copy:
         src: index.php
         dest: /var/www/{{ domain }}
@@ -33,27 +33,14 @@
         group: "{{ user }}"
         mode: 0644
 
-    - name: copie virtualhost
+    - name: copy  virtualhost
       template:
         src: virtualhost.conf.j2
-        dest: /etc/httpd/sites-enabled/virtualhost.conf
-
-    - name: remove default virtualhost
-      command: a2dissite 000-default.conf
-      args: 
-        removes: /etc/httpd/sites-enabled/000-default.conf
-        notify: 
-        - name: relancer apache
-
-    - name: ajout virtualhost
-      command: a2ensite /etc/httpd/sites-enabled/virtualhost.conf
-      args:
-        creates: /etc/httpd/sites-enabled/virtualhost.conf
-        notify: 
-        - name: relancer apache
-
-  handlers:
-    - name: relancer apache
+        dest: /etc/httpd/conf.d/virtualhost.conf
+    
+    - name: activate httpd service
       ansible.builtin.service:
         name: httpd
-        state: reloaded
+        enabled: true
+        state: started
+
